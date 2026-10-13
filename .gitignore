@@ -3,7 +3,6 @@ __pycache__/
 *.pyc
 .env
 create_dataset.py
-iris.csv
 mlruns/
 artifacts/
 mlflow.db
