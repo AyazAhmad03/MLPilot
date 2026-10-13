@@ -1,0 +1,14 @@
+# MLPilot settings — change these to control the pipeline without touching code
+
+test_size: 0.2                 # portion of data kept aside for testing
+random_state: 42                # seed for reproducibility
+cv_folds: 5                     # number of cross-validation folds
+
+missing_ratio_limit: 0.3        # if more than 30% of cells are missing -> run cleaning agent
+classification_threshold: 0.75  # if F1 score is below this -> run tuning agent
+regression_threshold: 0.6       # if R2 score is below this -> run tuning agent
+
+max_rows_for_kernel_models: 10000   # drop SVC/SVR on big datasets (too slow)
+enable_tuning: true             # set false to skip the tuning loop entirely
+tuning_trials: 30               # how many Optuna trials to try
+column_missing_limit: 0.4       # drop any column that is more than 40% missing

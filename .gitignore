@@ -4,3 +4,6 @@ __pycache__/
 .env
 create_dataset.py
 iris.csv
+mlruns/
+artifacts/
+mlflow.db

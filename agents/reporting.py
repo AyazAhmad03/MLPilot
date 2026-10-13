@@ -72,7 +72,6 @@ FINAL TEST PERFORMANCE
 ============================================================
 """
 
-    print(report)
 
     return {
         "report": report

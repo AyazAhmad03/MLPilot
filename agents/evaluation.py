@@ -94,6 +94,27 @@ def evaluation_agent(state: GraphState):
     for metric, value in metrics.items():
         print(f"{metric}: {value:.4f}")
 
+    # --------------------------------------------------------
+    # PATCH C: MLflow tracking (optional — never crashes the pipeline)
+    # --------------------------------------------------------
+
+    try:
+        import mlflow
+
+        with mlflow.start_run(run_name=state.get("best_model_name", "mlpilot_run")):
+            mlflow.log_param("problem_type", problem_type)
+            mlflow.log_param("rows", state.get("rows"))
+            mlflow.log_param("candidates_tested", len(state.get("cv_results", {})))
+            mlflow.log_metrics({k: float(v) for k, v in metrics.items()})
+            mlflow.sklearn.log_model(
+                state.get("trained_pipeline"),
+                name="model",
+                skops_trusted_types=["numpy.dtype", "sklearn.tree._tree.Tree"],
+            )
+        print("Run tracked in MLflow (mlruns/).")
+    except Exception as e:
+        print(f"MLflow logging skipped: {e}")
+
     return {
         "metrics": metrics
     }
