@@ -6,3 +6,4 @@ create_dataset.py
 mlruns/
 artifacts/
 mlflow.db
+.pytest_cache/
