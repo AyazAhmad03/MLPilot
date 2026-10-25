@@ -43,3 +43,5 @@ class GraphState(TypedDict, total=False):
     trained_pipeline: Any
     metrics: dict
     report: str
+
+    insight: str

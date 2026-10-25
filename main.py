@@ -37,6 +37,14 @@ def main():
 
     print("\n" + result["report"])
     logger.info("Done. Best model: %s", result.get("best_model_name"))
+    
+    # show the LLM insight (generated on the finish branch)
+    insight_text = result.get("insight")
+    if insight_text:
+        print("\n" + "=" * 60)
+        print("MLPILOT INSIGHT (LLM)")
+        print("=" * 60)
+        print(insight_text, "\n")
 
 
 if __name__ == "__main__":

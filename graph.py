@@ -13,6 +13,7 @@ from agents.training import training_agent
 from agents.tuning import tuning_agent
 from agents.evaluation import evaluation_agent
 from agents.reporting import report_agent
+from agents.insight import insight_agent
 
 def build_graph():
     graph = StateGraph(GraphState)
@@ -30,6 +31,7 @@ def build_graph():
         "tuning": tuning_agent,
         "evaluation": evaluation_agent,
         "report": report_agent,
+        "insight": insight_agent, 
     }
     for name, fn in nodes.items():
         graph.add_node(name, fn)
@@ -56,10 +58,10 @@ def build_graph():
     # gate returns "tune" -> tune the model. returns "report" -> finish.
     graph.add_conditional_edges("evaluation", performance_gate, {
         "tune": "tuning",
-        "report": "report",
+        "report": "insight",
     })
     graph.add_edge("tuning", "training")               # <-- the loop back
-
+    graph.add_edge("insight", "report")  
     graph.add_edge("report", END)
 
     return graph.compile()
