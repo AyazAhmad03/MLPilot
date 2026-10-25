@@ -283,5 +283,3 @@ MLPilot/
 ## Author
 
 **Ayaz Ahmad**, final-year B.Tech student building agentic systems for real machine learning workflows.
-
-[GitHub · @AyazAhmad03](https://github.com/AyazAhmad03)
