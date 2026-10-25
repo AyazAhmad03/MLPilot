@@ -2,6 +2,8 @@
 
 # 🧭 MLPilot
 
+![Tests](https://github.com/AyazAhmad03/MLPilot/actions/workflows/ci.yml/badge.svg)
+
 ### *Hand it a dataset. Get back a trained, evaluated, documented model.*
 
 An autonomous AI/ML engineer built as a stateful multi-agent graph on **LangGraph**.
