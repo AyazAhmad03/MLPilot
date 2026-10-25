@@ -16,6 +16,13 @@ from sklearn.metrics import confusion_matrix
 
 from graph import build_graph
 
+# ---- NEW: chat assistant loads defensively (works without chat.py) ----
+try:
+    from chat import build_run_summary, answer
+    CHAT_AVAILABLE = True
+except ImportError:
+    CHAT_AVAILABLE = False
+
 st.set_page_config(page_title="MLPilot", page_icon="🧭", layout="wide")
 
 AMBER, VIOLET, LINE, MUTED = "#F3B562", "#6C5FB5", "#322A58", "#9A92BD"
@@ -91,6 +98,17 @@ section[data-testid="stSidebar"]{background:var(--panel);border-right:1px solid 
 .rise{animation:rise .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:var(--d,0s)}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}}
 
+/* NEW: Insight card */
+.insight{background:linear-gradient(135deg,rgba(108,95,181,.16),var(--panel));border:1px solid rgba(108,95,181,.5);border-radius:14px;padding:16px 20px;font-size:14.5px;line-height:1.6;color:var(--text)}
+.insight .it{font:700 12px 'Bricolage Grotesque',sans-serif;letter-spacing:2px;color:#C9C0F0;margin-bottom:8px}
+
+/* NEW: Chat */
+[data-testid="stChatMessage"]{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p{color:var(--text)}
+[data-testid="stChatInput"]{border:1px solid var(--line)!important;border-radius:12px!important;background:var(--panel)!important}
+[data-testid="stChatInput"] textarea{background:transparent!important;color:var(--text)!important}
+[data-testid="stChatInput"] button{background:var(--amber)!important;color:#2A1A05!important;border-radius:9px!important}
+
 /* Widgets */
 button[kind="primary"],[data-testid="stBaseButton-primary"]{background:var(--amber)!important;border-color:var(--amber)!important;color:#2A1A05!important;font-weight:600;transition:transform .15s,filter .15s}
 button[kind="primary"]:hover,[data-testid="stBaseButton-primary"]:hover{filter:brightness(1.08);transform:translateY(-1px)}
@@ -112,12 +130,12 @@ def load_app():
 app = load_app()
 
 # --------------------------------------------------------------------------
-# Pipeline definition
+# Pipeline definition  (NEW: insight agent added to the map)
 # --------------------------------------------------------------------------
 TOP = [("data_upload", "UPLOAD"), ("data_analysis", "ANALYSIS"), ("data_cleaning", "CLEANING"),
        ("problem_detection", "DETECTION"), ("data_preparation", "PREPARATION")]
 BOTTOM = [("model_selection", "SELECTION"), ("model_experimentation", "BENCHMARK"), ("training", "TRAINING"),
-          ("evaluation", "EVALUATION"), ("tuning", "TUNING"), ("report", "REPORT")]
+          ("evaluation", "EVALUATION"), ("insight", "INSIGHT"), ("tuning", "TUNING"), ("report", "REPORT")]
 ALL = [n for n, _ in TOP + BOTTOM]
 LOOP_NODES = {"data_cleaning", "tuning"}
 
@@ -126,7 +144,7 @@ def header_html(kind: str, label: str) -> str:
     return (
         '<div class="hero"><div class="hrow"><div class="hl"><div class="mark">ML</div>'
         '<div><div class="ht">MLPilot</div>'
-        '<div class="hs">Agentic AutoML pipeline · two feedback loops · Optuna tuning · MLflow tracking</div></div></div>'
+        '<div class="hs">Agentic AutoML pipeline · two feedback loops · Optuna tuning · MLflow tracking · LLM insight &amp; chat</div></div></div>'
         f'<span class="pill {kind}"><i></i>{label}</span></div></div>'
     )
 
@@ -182,6 +200,13 @@ def section(title: str, hint: str = "") -> None:
     st.markdown(f'<div class="sec">{title}</div><div class="hint">{hint}</div>', unsafe_allow_html=True)
 
 
+# ---- NEW: turn the LLM's **bold** markdown into styled HTML for the card ----
+def rich_text(text: str) -> str:
+    parts = html.escape(text).split("**")
+    out = "".join(p if i % 2 == 0 else f"<b>{p}</b>" for i, p in enumerate(parts))
+    return out.replace("\n", "<br>")
+
+
 def describe(node: str, u: dict) -> str:
     try:
         if node == "data_upload":
@@ -206,6 +231,8 @@ def describe(node: str, u: dict) -> str:
                 return f"CV {h[-1]['cv_score']:.4f} · " + ("accepted" if h[-1].get("accepted") else "rejected")
         if node == "evaluation":
             return ", ".join(f"{k} {v:.3f}" for k, v in u.get("metrics", {}).items())
+        if node == "insight":                       # NEW
+            return "LLM analysis generated"
         if node == "report":
             return "generated"
     except Exception:
@@ -316,6 +343,16 @@ section("Best model", "Scores on the held-out test split.")
 items = [("Model", final.get("best_model_name", "?"))] + [(k.replace("_", " ").title(), f"{v:.4f}") for k, v in metrics.items()]
 st.markdown(cards_html(items, "hi", 0.15), unsafe_allow_html=True)
 
+# ---- NEW: insight card (Phase 1 output, styled to the theme) ----
+insight_text = final.get("insight")
+if insight_text:
+    section("Model insight", "Written by the insight agent — grounded strictly in this run's facts.")
+    st.markdown(
+        '<div class="insight rise" style="--d:0.2s"><div class="it">💡 INSIGHT AGENT</div>'
+        + rich_text(insight_text) + "</div>",
+        unsafe_allow_html=True,
+    )
+
 st.write("")
 t_rep, t_data, t_model, t_opt = st.tabs(["Report", "Data inspector", "Model internals", "Optuna"])
 
@@ -389,6 +426,30 @@ with t_opt:
             st.json(hist)
     else:
         st.info("The tuning loop did not run. The first pass satisfied the gate.")
+
+# ---- NEW: chat with the run (Phase 2) ----
+section("Chat with your run", "Grounded in this run's saved facts — it never invents numbers.")
+if not CHAT_AVAILABLE:
+    st.info("Coming soon....")
+else:
+    saved.setdefault("chat", [])
+    summary = build_run_summary(final)
+
+    for u, a in saved["chat"]:
+        with st.chat_message("user"):
+            st.write(u)
+        with st.chat_message("assistant"):
+            st.write(a)
+
+    if prompt := st.chat_input("Ask about the model, the data, the scores…"):
+        with st.chat_message("user"):
+            st.write(prompt)
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking…"):
+                reply = answer(prompt, summary, saved["chat"])
+            st.write(reply)
+        saved["chat"].append((prompt, reply))
+        st.rerun()
 
 model_path = "artifacts/best_model.joblib"
 if os.path.exists(model_path):
