@@ -35,14 +35,36 @@ def data_preparation_agent(state: GraphState):
     df = state["df"].copy()
     target_column = state["target_column"]
     problem_type = state["problem_type"]
+    diagnostics = state.get("diagnostics") or {}
+
+    # ---- 0. NEW: numbers stored as text -> numeric (from diagnostics) ----
+    # The profiler already verified >=95% of values parse. Row-wise cast,
+    # no statistics -> no leakage. Without this, a text "price" column
+    # lands in categorical_features and gets one-hot encoded into garbage.
+    text_nums = [
+        col for col in diagnostics.get("overview", {}).get("numeric_stored_as_text", [])
+        if col in df.columns and col != target_column
+    ]
+    for col in text_nums:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    if text_nums:
+        print(f"Converted numbers stored as text: {text_nums}")
 
     # ---- 1. Expand date columns FIRST (before ID detection) ----
     # A date column is unique-per-row, so the ID heuristic would swallow it.
     # Expanding first turns it into low-cardinality numeric features
     # (year/month/dayofweek) that safely pass the ID check afterwards.
+    # v2: the profiler's full-column verdict is authoritative; the old
+    # 20-row-sample heuristic stays as fallback for runs without diagnostics.
+    diag_dates = set()
+    if diagnostics and not diagnostics.get("error"):
+        diag_dates = {
+            col for col, ci in diagnostics.get("columns", {}).items()
+            if ci.get("type") == "datetime"
+        }
     date_columns = [
         col for col in df.columns
-        if col != target_column and looks_like_datetime(df[col])
+        if col != target_column and (col in diag_dates or looks_like_datetime(df[col]))
     ]
     for col in date_columns:
         parsed = pd.to_datetime(df[col], errors="coerce")
@@ -54,6 +76,8 @@ def data_preparation_agent(state: GraphState):
         print(f"Expanded date columns: {date_columns}")
 
     # ---- 2. Drop ID-like columns (unique per row = pure noise for models) ----
+    # (The cleaning agent already drops profiler-flagged id_like columns;
+    #  this heuristic stays as the safety net for runs without diagnostics.)
     id_columns = [
         col for col in df.columns
         if col != target_column and (
@@ -72,7 +96,15 @@ def data_preparation_agent(state: GraphState):
 
     # Recompute feature types AFTER dropping/expanding (state lists are stale now)
     numerical_features = X.select_dtypes(include=np.number).columns.tolist()
-    categorical_features = X.select_dtypes(exclude=np.number).columns.tolist()
+    # v2: datetime columns are excluded from the categorical bucket — the
+    # preprocessor cannot one-hot a timestamp. Anything still datetime here
+    # was missed by both the profiler and the heuristic: logged, left unused.
+    categorical_features = X.select_dtypes(
+        exclude=[np.number, "datetime", "datetimetz"]
+    ).columns.tolist()
+    residual_dt = X.select_dtypes(include=["datetime", "datetimetz"]).columns.tolist()
+    if residual_dt:
+        print(f"WARNING: unhandled datetime columns left out of features: {residual_dt}")
 
     # ---- 4. Preprocessor (unchanged logic) ----
     numerical_pipeline = Pipeline(steps=[

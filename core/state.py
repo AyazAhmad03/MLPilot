@@ -1,47 +1,105 @@
+
 from typing import TypedDict, Any
 
+
 class GraphState(TypedDict, total=False):
-    # Input
+
+    # ============================================================
+    # INPUT
+    # ============================================================
     file_path: str
     target_column: str
 
-    # Dataset
+    # ============================================================
+    # DATASET
+    # ============================================================
     df: Any
     rows: int
     columns: int
 
-    # Analysis
+    # ============================================================
+    # DATA ANALYSIS
+    # ============================================================
     missing_values: dict
     numerical_columns: list
     categorical_columns: list
+    analysis_digest: str
+
+    # Dataset diagnostics
+    diagnostics: dict
+
+    # Deterministic cleaning and preparation plans
+    cleaning_plan: dict
+    prep_plan: dict
+
+    # Cleaning information
     dropped_columns: list
-    cleaned: bool              # NEW — prevents infinite cleaning loop
+    cleaned: bool
 
-    # Problem
+    # ============================================================
+    # PROBLEM DETECTION
+    # ============================================================
     problem_type: str
+    problem_spec: dict
 
-    # ML data
+    # ============================================================
+    # DATA PREPARATION
+    # ============================================================
     X: Any
     y: Any
+
     X_train: Any
     X_test: Any
     y_train: Any
     y_test: Any
-    preprocessor: Any          # FIX — was missing before
 
-    # Models
+    preprocessor: Any
+
+    # Preparation metadata
+    prep_metadata: dict
+
+    # ============================================================
+    # MODEL SELECTION
+    # ============================================================
     candidate_models: dict
+
+    # ============================================================
+    # MODEL EXPERIMENTATION
+    # ============================================================
     cv_results: dict
     best_model_name: str
     best_model: Any
 
-    # Tuning loop
-    tuning_attempted: bool     # NEW
-    tuning_history: list       # NEW
-
-    # Final
+    # ============================================================
+    # MODEL TRAINING
+    # ============================================================
     trained_pipeline: Any
-    metrics: dict
-    report: str
 
+    # ============================================================
+    # HYPERPARAMETER TUNING
+    # ============================================================
+    tuning_attempted: bool
+    tuning_history: list
+
+    # ============================================================
+    # MODEL EVALUATION
+    # ============================================================
+    metrics: dict
+
+    # ============================================================
+    # MLFLOW TRACKING
+    # ============================================================
+    mlflow_run_id: str
+    mlflow_tracking_uri: str
+    mlflow_status: str
+    mlflow_error: str
+
+    # ============================================================
+    # AI INSIGHTS
+    # ============================================================
     insight: str
+
+    # ============================================================
+    # FINAL REPORT
+    # ============================================================
+    report: str
